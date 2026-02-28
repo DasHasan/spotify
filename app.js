@@ -87,6 +87,7 @@ async function renderList() {
     <main class="screen">${spinner()}</main>
   `;
   document.getElementById('out-btn').onclick = () => { logout(); login(); };
+  updateManifest('Podcast Roulette', null);
 
   const main = app.querySelector('main');
   try {
@@ -141,6 +142,7 @@ async function renderShow(showId) {
     const showImg = show.images?.[0]?.url ?? '';
 
     app.querySelector('.header-title').textContent = show.name;
+    updateManifest(show.name, showId);
 
     main.innerHTML = `
       <div class="show-header">
@@ -160,6 +162,34 @@ async function renderShow(showId) {
   } catch (err) {
     main.innerHTML = `<div class="error-box">${esc(err.message)}</div>`;
   }
+}
+
+// ── Web app manifest (dynamic, for A2HS icon label) ──────────────────────────
+
+let _manifestBlob = null;
+
+function updateManifest(name, showId) {
+  // Derive the app's base URL regardless of subpath (works locally + GitHub Pages)
+  const base = `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`;
+
+  const short = name.length > 15 ? name.slice(0, 14) + '\u2026' : name;
+
+  const manifest = {
+    name,
+    short_name: short,
+    start_url: showId ? `${base}/?show=${showId}` : `${base}/`,
+    scope: `${base}/`,
+    display: 'standalone',
+    background_color: '#121212',
+    theme_color: '#121212',
+    icons: [{ src: `${base}/favicon.svg`, sizes: 'any', type: 'image/svg+xml' }],
+  };
+
+  if (_manifestBlob) URL.revokeObjectURL(_manifestBlob);
+  _manifestBlob = URL.createObjectURL(
+    new Blob([JSON.stringify(manifest)], { type: 'application/json' })
+  );
+  document.getElementById('manifest-link').href = _manifestBlob;
 }
 
 // Preloaded next episode so Roll Again can open Spotify synchronously
