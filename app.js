@@ -64,6 +64,7 @@ function spinner() {
 // ── Routing ───────────────────────────────────────────────────────────────────
 
 function navigate(showId) {
+  _preloaded = null;
   history.pushState({}, '', showId ? `?show=${showId}` : '/');
   route();
 }
@@ -161,6 +162,10 @@ async function renderShow(showId) {
   }
 }
 
+// Preloaded next episode so Roll Again can open Spotify synchronously
+// inside the click handler (user gesture still live, no async delay).
+let _preloaded = null;
+
 async function loadEpisode(showId, total, fallbackImg) {
   const sec = document.getElementById('ep-section');
   sec.innerHTML = `
@@ -169,37 +174,58 @@ async function loadEpisode(showId, total, fallbackImg) {
       <span>Finding a random episode…</span>
     </div>
   `;
-
   try {
-    const ep    = await getRandomEpisode(showId, total);
-    const img   = ep.images?.[0]?.url ?? fallbackImg;
-    const desc  = stripHtml(ep.description);
-    const meta  = [
-      fmtDate(ep.release_date),
-      ep.duration_ms ? fmtDuration(ep.duration_ms) : '',
-    ].filter(Boolean).join(' · ');
-
-    sec.innerHTML = `
-      <div class="ep-label">Random Episode</div>
-      <div class="ep-card">
-        ${img ? `<img class="ep-img" src="${esc(img)}" alt="">` : ''}
-        <div class="ep-name">${esc(ep.name)}</div>
-        ${meta ? `<div class="ep-meta">${esc(meta)}</div>` : ''}
-        ${desc ? `<div class="ep-desc">${esc(desc)}</div>` : ''}
-        <div class="ep-actions">
-          <button class="btn btn-primary" id="open-btn">${ICO.spotify} Open in Spotify</button>
-          <button class="btn btn-secondary" id="roll-btn">${ICO.shuffle} Roll Again</button>
-        </div>
-      </div>
-    `;
-
+    const ep = await getRandomEpisode(showId, total);
     openSpotify(ep.uri);
-
-    document.getElementById('open-btn').onclick = () => openSpotify(ep.uri);
-    document.getElementById('roll-btn').onclick = () => loadEpisode(showId, total, fallbackImg);
+    _showEpisode(sec, ep, showId, total, fallbackImg);
   } catch (err) {
     sec.innerHTML = `<div class="error-box">${esc(err.message)}</div>`;
   }
+}
+
+function _showEpisode(sec, ep, showId, total, fallbackImg) {
+  const img  = ep.images?.[0]?.url ?? fallbackImg;
+  const desc = stripHtml(ep.description);
+  const meta = [
+    fmtDate(ep.release_date),
+    ep.duration_ms ? fmtDuration(ep.duration_ms) : '',
+  ].filter(Boolean).join(' · ');
+
+  sec.innerHTML = `
+    <div class="ep-label">Random Episode</div>
+    <div class="ep-card">
+      ${img ? `<img class="ep-img" src="${esc(img)}" alt="">` : ''}
+      <div class="ep-name">${esc(ep.name)}</div>
+      ${meta ? `<div class="ep-meta">${esc(meta)}</div>` : ''}
+      ${desc ? `<div class="ep-desc">${esc(desc)}</div>` : ''}
+      <div class="ep-actions">
+        <button class="btn btn-primary" id="open-btn">${ICO.spotify} Open in Spotify</button>
+        <button class="btn btn-secondary" id="roll-btn">${ICO.shuffle} Roll Again</button>
+      </div>
+    </div>
+  `;
+
+  // Preload next episode in the background while the user listens
+  _preloaded = null;
+  getRandomEpisode(showId, total)
+    .then(next => { _preloaded = next; })
+    .catch(() => {});
+
+  document.getElementById('open-btn').onclick = () => openSpotify(ep.uri);
+
+  document.getElementById('roll-btn').onclick = () => {
+    const next = _preloaded;
+    _preloaded = null;
+    if (next) {
+      // Episode already fetched — open Spotify immediately inside this
+      // click handler while the user gesture is still active.
+      openSpotify(next.uri);
+      _showEpisode(sec, next, showId, total, fallbackImg);
+    } else {
+      // Preload not ready yet (slow network) — fall back to normal fetch.
+      loadEpisode(showId, total, fallbackImg);
+    }
+  };
 }
 
 // Opens the episode in the Spotify app via its URI scheme (e.g. spotify:episode:ID).
