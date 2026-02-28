@@ -1,5 +1,5 @@
 const CLIENT_ID    = '4459277a1bc84f1e818d72f0f2af2e82';
-const REDIRECT_URI = `${location.origin}/callback`;
+const REDIRECT_URI = `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}/callback`;
 const SCOPES       = 'user-library-read';
 const AUTH_URL     = 'https://accounts.spotify.com/authorize';
 const TOKEN_URL    = 'https://accounts.spotify.com/api/token';
