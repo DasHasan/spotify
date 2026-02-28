@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#121212">
+  <title>Authenticating…</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px;">
+    <div class="spinner"></div>
+    <p id="msg" style="color:var(--muted);font-size:.9rem;">Authenticating…</p>
+  </div>
+  <script type="module">
+    import { exchangeCode } from './auth.js';
+
+    const params = new URLSearchParams(location.search);
+    const code  = params.get('code');
+    const error = params.get('error');
+
+    if (error) {
+      document.getElementById('msg').textContent = 'Authentication cancelled.';
+    } else if (code) {
+      exchangeCode(code)
+        .then(() => {
+          const returnTo = sessionStorage.getItem('return_to') || '/';
+          sessionStorage.removeItem('return_to');
+          location.replace(returnTo);
+        })
+        .catch(err => { document.getElementById('msg').textContent = err.message; });
+    } else {
+      location.replace('/');
+    }
+  </script>
+</body>
+</html>
