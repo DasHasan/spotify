@@ -142,7 +142,7 @@ async function renderShow(showId) {
     const showImg = show.images?.[0]?.url ?? '';
 
     app.querySelector('.header-title').textContent = show.name;
-    updateManifest(show.name, showId);
+    updateManifest(show.name, showId, show.images?.[0]?.url);
 
     main.innerHTML = `
       <div class="show-header">
@@ -168,11 +168,15 @@ async function renderShow(showId) {
 
 let _manifestBlob = null;
 
-function updateManifest(name, showId) {
+function updateManifest(name, showId, imageUrl) {
   // Derive the app's base URL regardless of subpath (works locally + GitHub Pages)
   const base = `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`;
 
   const short = name.length > 15 ? name.slice(0, 14) + '\u2026' : name;
+
+  const icons = imageUrl
+    ? [{ src: imageUrl, sizes: '640x640', type: 'image/jpeg', purpose: 'any maskable' }]
+    : [{ src: `${base}/favicon.svg`, sizes: 'any', type: 'image/svg+xml' }];
 
   const manifest = {
     name,
@@ -182,7 +186,7 @@ function updateManifest(name, showId) {
     display: 'standalone',
     background_color: '#121212',
     theme_color: '#121212',
-    icons: [{ src: `${base}/favicon.svg`, sizes: 'any', type: 'image/svg+xml' }],
+    icons,
   };
 
   if (_manifestBlob) URL.revokeObjectURL(_manifestBlob);
