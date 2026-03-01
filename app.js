@@ -164,17 +164,10 @@ async function renderShow(showId) {
   }
 }
 
-// ── Web app manifest (dynamic, for A2HS icon/label/start_url) ────────────────
+// ── Page title (used as label when saving a homescreen bookmark) ─────────────
 
-function updateManifest(name, showId, imageUrl) {
-  // Chrome rejects blob: URLs as manifest sources — use query params instead;
-  // the service worker (sw.js) intercepts manifest.json requests and builds
-  // the manifest from these params so A2HS captures the correct name, icon,
-  // and start_url for the current podcast.
-  const params = new URLSearchParams({ name });
-  if (showId)   params.set('show', showId);
-  if (imageUrl) params.set('icon', imageUrl);
-  document.getElementById('manifest-link').href = `manifest.json?${params}`;
+function updateManifest(name) {
+  document.title = name;
 }
 
 // Preloaded next episode so Roll Again can open Spotify synchronously
@@ -252,10 +245,6 @@ function openSpotify(uri) {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function boot() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  }
-
   // Handle the OAuth callback landing on this page (edge case)
   const params = new URLSearchParams(location.search);
   if (params.has('code')) {
