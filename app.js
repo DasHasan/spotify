@@ -164,36 +164,17 @@ async function renderShow(showId) {
   }
 }
 
-// ── Web app manifest (dynamic, for A2HS icon label) ──────────────────────────
-
-let _manifestBlob = null;
+// ── Web app manifest (dynamic, for A2HS icon/label/start_url) ────────────────
 
 function updateManifest(name, showId, imageUrl) {
-  // Derive the app's base URL regardless of subpath (works locally + GitHub Pages)
-  const base = `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`;
-
-  const short = name.length > 15 ? name.slice(0, 14) + '\u2026' : name;
-
-  const icons = imageUrl
-    ? [{ src: imageUrl, sizes: '640x640', type: 'image/jpeg', purpose: 'any maskable' }]
-    : [{ src: `${base}/favicon.svg`, sizes: 'any', type: 'image/svg+xml' }];
-
-  const manifest = {
-    name,
-    short_name: short,
-    start_url: showId ? `${base}/?show=${showId}` : `${base}/`,
-    scope: `${base}/`,
-    display: 'standalone',
-    background_color: '#121212',
-    theme_color: '#121212',
-    icons,
-  };
-
-  if (_manifestBlob) URL.revokeObjectURL(_manifestBlob);
-  _manifestBlob = URL.createObjectURL(
-    new Blob([JSON.stringify(manifest)], { type: 'application/json' })
-  );
-  document.getElementById('manifest-link').href = _manifestBlob;
+  // Chrome rejects blob: URLs as manifest sources — use query params instead;
+  // the service worker (sw.js) intercepts manifest.json requests and builds
+  // the manifest from these params so A2HS captures the correct name, icon,
+  // and start_url for the current podcast.
+  const params = new URLSearchParams({ name });
+  if (showId)   params.set('show', showId);
+  if (imageUrl) params.set('icon', imageUrl);
+  document.getElementById('manifest-link').href = `manifest.json?${params}`;
 }
 
 // Preloaded next episode so Roll Again can open Spotify synchronously
@@ -271,6 +252,10 @@ function openSpotify(uri) {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 
 async function boot() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
   // Handle the OAuth callback landing on this page (edge case)
   const params = new URLSearchParams(location.search);
   if (params.has('code')) {
