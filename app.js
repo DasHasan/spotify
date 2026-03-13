@@ -1,6 +1,7 @@
 import { login, logout, isLoggedIn, exchangeCode } from './auth.js';
 import { getShows, getShow, getRandomEpisode } from './api.js';
 
+
 const app = document.getElementById('app');
 
 // ── SVG icons (inline for zero dependencies) ─────────────────────────────────
